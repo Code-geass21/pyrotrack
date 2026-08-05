@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pyrotrack_backend
+    ports:
+      - "8088:8000" # Host port 8088 routes to Container port 8000
+    volumes:
+      - ./backend:/app # Live reloads your code!
+    restart: unless-stopped
