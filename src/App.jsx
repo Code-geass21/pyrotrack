@@ -6,23 +6,15 @@ import DeliveryTracker from './components/DeliveryTracker';
 export default function App() {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [apiError, setApiError] = useState(null); // New error state
 
   const fetchEntries = () => {
     fetch('/api/v1/entries')
-      .then(res => {
-        if (!res.ok) throw new Error(`API returned status: ${res.status}`);
-        return res.json();
-      })
+      .then(res => res.json())
       .then(data => {
         setEntries(data);
         setLoading(false);
       })
-      .catch(err => {
-        console.error("API Error:", err);
-        setApiError(err.message); // Capture the error
-        setLoading(false); // Stop loading!
-      });
+      .catch(err => console.error("API Error:", err));
   };
 
   useEffect(() => {
@@ -30,13 +22,6 @@ export default function App() {
   }, []);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-[#00D4FF] animate-pulse bg-[#080C10]">Igniting Burners...</div>;
-  
-  // Show the error on screen if the API is unreachable
-  if (apiError) return <div className="min-h-screen flex flex-col items-center justify-center text-[#FF5C5C] bg-[#080C10] gap-4">
-    <h2 className="text-2xl font-bold">Backend Connection Failed</h2>
-    <p className="font-mono text-sm">{apiError}</p>
-    <p className="text-slate-400 mt-4">Make sure your Docker container is running on port 8088.</p>
-  </div>;
 
   const activeEntry = entries.find(e => e.started && !e.finished);
   const finishedEntries = entries.filter(e => e.started && e.finished);
@@ -58,6 +43,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#080C10] text-[#E8EDF2] p-8 font-sans selection:bg-[#00D4FF]/30 pb-20">
+      
       <header className="flex justify-between items-center mb-12 border-b border-white/10 pb-4 max-w-4xl mx-auto">
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
           <div className="w-3 h-3 rounded-full bg-[#00D4FF] shadow-[0_0_10px_#00D4FF] animate-pulse" />
@@ -120,7 +106,9 @@ export default function App() {
         </div>
       </main>
 
+      {/* The Animated Truck Logistics! */}
       <DeliveryTracker entries={entries} refreshData={fetchEntries} />
+
       <DataGrid entries={entries} refreshData={fetchEntries} />
       
     </div>
