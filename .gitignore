@@ -1,0 +1,31 @@
+# ─── NODE / FRONTEND ───
+node_modules/
+dist/
+.npm/
+npm-debug.log*
+
+# ─── PYTHON / BACKEND ───
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# ─── DATABASE ───
+# Ignore temporary SQLite write-ahead logs and shared memory files
+*.db-shm
+*.db-wal
+*.sqlite3
+
+# NOTE: If you do NOT want your actual cooking gas data pushed to GitHub, 
+# uncomment the next line. If you want it backed up to GitHub, leave it commented.
+# util_data.db
+
+# ─── ENVIRONMENT & OS ───
+.env
+.env.local
+.DS_Store
+.vscode/
+.idea/
+*.swp
