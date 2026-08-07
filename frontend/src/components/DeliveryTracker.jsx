@@ -1,10 +1,9 @@
 import { motion } from "framer-motion";
 
 export default function DeliveryTracker({ entries }) {
-  // Find any cylinder that is ordered but hasn't been received yet
   const inTransit = entries.find(e => e.ordered && !e.received);
   
-  if (!inTransit) return null; // Hide completely if nothing is in transit
+  if (!inTransit) return null;
 
   return (
     <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-2xl mb-8 relative overflow-hidden">
@@ -38,7 +37,8 @@ export default function DeliveryTracker({ entries }) {
           animate={{ left: "85%" }}
           transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
         >
-          🚚
+          {/* Flipped the emoji to face right using scale-x-[-1] */}
+          <span className="inline-block scale-x-[-1]">🚚</span>
         </motion.div>
       </div>
     </div>
