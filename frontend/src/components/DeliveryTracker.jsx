@@ -32,13 +32,20 @@ export default function DeliveryTracker({ entries }) {
 
         {/* The Animated Retro Truck */}
         <motion.div 
-          className="absolute text-4xl top-1/2 -translate-y-1/2 drop-shadow-[0_0_15px_rgba(0,212,255,0.3)]"
+          className="absolute top-1/2 -translate-y-1/2 z-20"
           initial={{ left: "5%" }}
           animate={{ left: "85%" }}
           transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
         >
-          {/* Flipped the emoji to face right using scale-x-[-1] */}
-          <span className="inline-block scale-x-[-1]">🚚</span>
+          {/* Bulletproof inline styling to guarantee rendering, flipping, and neon drop-shadow */}
+          <div style={{ 
+            transform: "scaleX(-1)", 
+            fontSize: "2.5rem", 
+            filter: "drop-shadow(0px 0px 8px rgba(0,212,255,0.6))",
+            display: "inline-block"
+          }}>
+            🚚
+          </div>
         </motion.div>
       </div>
     </div>
