@@ -5,3 +5,4 @@ alembic
 aiosqlite
 pydantic
 aiofiles
+python-multipart

@@ -12,12 +12,13 @@ class Entry(Base):
     commission = Column(Float, nullable=True)
     started = Column(Date, nullable=True)
     finished = Column(Date, nullable=True)
+    receipt_path = Column(String, nullable=True) # 📸 NEW: Stores the image filename
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
-    action = Column(String, nullable=False)  # 'CREATE', 'UPDATE', 'DELETE'
+    action = Column(String, nullable=False)
     entry_id = Column(Integer, nullable=True)
-    details = Column(Text, nullable=True)    # JSON string of exactly what changed
+    details = Column(Text, nullable=True)

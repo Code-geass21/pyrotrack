@@ -4,10 +4,8 @@ import { motion } from "framer-motion";
 export default function DataGrid({ entries, refreshData }) {
   const [orderDate, setOrderDate] = useState("");
   const [amount, setAmount] = useState("");
-
   const [editRowId, setEditRowId] = useState(null);
   const [editForm, setEditForm] = useState({});
-  
   const [actionDates, setActionDates] = useState({});
   const today = new Date().toISOString().split('T')[0];
 
@@ -18,9 +16,7 @@ export default function DataGrid({ entries, refreshData }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ordered: orderDate, paid: parseFloat(amount) })
     });
-    setOrderDate("");
-    setAmount("");
-    refreshData();
+    setOrderDate(""); setAmount(""); refreshData();
   };
 
   const updateEntry = async (id, payload) => {
@@ -29,26 +25,31 @@ export default function DataGrid({ entries, refreshData }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
-    setEditRowId(null);
-    refreshData();
+    setEditRowId(null); refreshData();
   };
 
-  // ─── NEW DELETE API CALL ──────────────────────────────────
   const deleteEntry = async (id) => {
     if (!window.confirm("WARNING: Are you sure you want to permanently delete this cylinder record?")) return;
     await fetch(`/api/v1/entries/${id}`, { method: "DELETE" });
-    setEditRowId(null);
+    setEditRowId(null); refreshData();
+  };
+
+  // 📸 NEW: FILE UPLOAD LOGIC
+  const uploadReceipt = async (id, file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    await fetch(`/api/v1/entries/${id}/receipt`, {
+      method: "POST",
+      body: formData
+    });
     refreshData();
   };
 
   const startEditing = (entry) => {
     setEditRowId(entry.id);
     setEditForm({
-      ordered: entry.ordered || "",
-      paid: entry.paid || "",
-      received: entry.received || "",
-      started: entry.started || "",
-      finished: entry.finished || ""
+      ordered: entry.ordered || "", paid: entry.paid || "",
+      received: entry.received || "", started: entry.started || "", finished: entry.finished || ""
     });
   };
 
@@ -68,6 +69,7 @@ export default function DataGrid({ entries, refreshData }) {
             <tr>
               <th className="pb-3 w-32">Ordered</th>
               <th className="pb-3">Cost</th>
+              <th className="pb-3">Receipt</th>
               <th className="pb-3">Status</th>
               <th className="pb-3">Actions</th>
             </tr>
@@ -93,7 +95,7 @@ export default function DataGrid({ entries, refreshData }) {
                         <span className="text-xs text-slate-500">Cost (₹)</span>
                         <input type="number" value={editForm.paid} onChange={e=>setEditForm({...editForm, paid: e.target.value})} className="bg-slate-950 text-xs p-1.5 rounded w-full border border-slate-700" />
                       </td>
-                      <td className="py-3 pr-2 align-top" colSpan={2}>
+                      <td className="py-3 pr-2 align-top" colSpan={3}>
                         <span className="text-xs text-slate-500">Received</span>
                         <input type="date" value={editForm.received} onChange={e=>setEditForm({...editForm, received: e.target.value})} className="bg-slate-950 text-xs p-1.5 rounded w-full border border-slate-700 mb-2" />
                         <span className="text-xs text-slate-500">Connected</span>
@@ -104,38 +106,41 @@ export default function DataGrid({ entries, refreshData }) {
                       <td className="py-3 align-top flex flex-col gap-2">
                         <button onClick={()=>updateEntry(entry.id, editForm)} className="bg-emerald-500 text-black px-3 py-1.5 rounded text-xs font-bold hover:bg-emerald-400">Save</button>
                         <button onClick={()=>setEditRowId(null)} className="bg-slate-700 text-white px-3 py-1.5 rounded text-xs hover:bg-slate-600">Cancel</button>
-                        
-                        {/* THE DELETE BUTTON */}
                         <button onClick={()=>deleteEntry(entry.id)} className="bg-red-500/10 text-red-400 border border-red-500/20 px-3 py-1.5 rounded text-xs hover:bg-red-500/20 mt-2 transition-colors">Delete</button>
                       </td>
                     </>
                   ) : (
                     <>
                       <td className="py-4 flex items-center gap-2">
-                        <button onClick={()=>startEditing(entry)} title="Edit all dates/costs" className="text-slate-500 hover:text-[#00D4FF] bg-slate-800 px-2 py-1 rounded text-xs">✎</button>
+                        <button onClick={()=>startEditing(entry)} title="Edit Row" className="text-slate-500 hover:text-[#00D4FF] bg-slate-800 px-2 py-1 rounded text-xs">✎</button>
                         {entry.ordered}
                       </td>
                       <td className="py-4">₹{entry.paid}</td>
+                      
+                      {/* 📸 NEW: THE RECEIPT UPLOAD COLUMN */}
+                      <td className="py-4">
+                        {entry.receipt_path ? (
+                          <a href={entry.receipt_path} target="_blank" rel="noreferrer" className="text-[10px] font-bold bg-[#00D4FF]/10 text-[#00D4FF] px-2 py-1 rounded border border-[#00D4FF]/30 hover:bg-[#00D4FF]/20 transition-colors">
+                            🖼️ VIEW
+                          </a>
+                        ) : (
+                          <label className="text-[10px] font-bold bg-slate-800 text-slate-400 px-2 py-1 rounded border border-slate-700 hover:text-white cursor-pointer transition-colors">
+                            📎 ATTACH
+                            <input type="file" accept="image/*,.pdf" className="hidden" onChange={(e) => {
+                              if(e.target.files[0]) uploadReceipt(entry.id, e.target.files[0]);
+                            }} />
+                          </label>
+                        )}
+                      </td>
+
                       <td className={`py-4 ${statusColor}`}>{status}</td>
                       <td className="py-4">
                         {!entry.finished && (
                           <div className="flex gap-2 items-center bg-slate-950 p-1.5 rounded-lg border border-slate-800 w-max">
-                            <input 
-                              type="date" 
-                              title="Action Date"
-                              value={currentActionDate} 
-                              onChange={(e)=> setActionDates({...actionDates, [entry.id]: e.target.value})} 
-                              className="bg-transparent text-xs p-1 rounded text-slate-400 outline-none cursor-pointer" 
-                            />
-                            {!entry.received && (
-                              <button onClick={() => updateEntry(entry.id, { received: currentActionDate })} className="text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded hover:bg-emerald-500/20 border border-emerald-500/20">Mark Received</button>
-                            )}
-                            {entry.received && !entry.started && (
-                              <button onClick={() => updateEntry(entry.id, { started: currentActionDate })} className="text-xs bg-amber-500/10 text-amber-400 px-3 py-1.5 rounded hover:bg-amber-500/20 border border-amber-500/20">Connect Tank</button>
-                            )}
-                            {entry.started && !entry.finished && (
-                              <button onClick={() => updateEntry(entry.id, { finished: currentActionDate })} className="text-xs bg-red-500/10 text-red-400 px-3 py-1.5 rounded hover:bg-red-500/20 border border-red-500/20">Mark Empty</button>
-                            )}
+                            <input type="date" value={currentActionDate} onChange={(e)=> setActionDates({...actionDates, [entry.id]: e.target.value})} className="bg-transparent text-xs p-1 rounded text-slate-400 outline-none cursor-pointer" />
+                            {!entry.received && <button onClick={() => updateEntry(entry.id, { received: currentActionDate })} className="text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded hover:bg-emerald-500/20 border border-emerald-500/20">Mark Received</button>}
+                            {entry.received && !entry.started && <button onClick={() => updateEntry(entry.id, { started: currentActionDate })} className="text-xs bg-amber-500/10 text-amber-400 px-3 py-1.5 rounded hover:bg-amber-500/20 border border-amber-500/20">Connect Tank</button>}
+                            {entry.started && !entry.finished && <button onClick={() => updateEntry(entry.id, { finished: currentActionDate })} className="text-xs bg-red-500/10 text-red-400 px-3 py-1.5 rounded hover:bg-red-500/20 border border-red-500/20">Mark Empty</button>}
                           </div>
                         )}
                       </td>

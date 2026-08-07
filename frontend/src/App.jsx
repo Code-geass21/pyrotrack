@@ -37,12 +37,22 @@ export default function App() {
             </h1>
             <p className="text-slate-500 text-sm mt-1">Cooking Gas Intelligence & Logistics</p>
           </div>
-          <button 
-            onClick={() => setIsAuditOpen(true)}
-            className="text-xs bg-slate-800 text-slate-300 px-4 py-2 rounded border border-slate-700 hover:border-slate-500 hover:text-white transition-colors"
-          >
-            🛡️ View Audit Logs
-          </button>
+          
+          <div className="flex gap-3">
+            {/* 🗄️ NEW: SECURE VAULT BACKUP BUTTON */}
+            <a 
+              href="/api/v1/backup"
+              className="text-xs font-bold bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors flex items-center gap-2"
+            >
+              🗄️ Download Backup
+            </a>
+            <button 
+              onClick={() => setIsAuditOpen(true)}
+              className="text-xs bg-slate-800 text-slate-300 px-4 py-2 rounded border border-slate-700 hover:border-slate-500 hover:text-white transition-colors"
+            >
+              🛡️ View Audit Logs
+            </button>
+          </div>
         </header>
 
         {error && (
@@ -62,7 +72,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* NEW INSIGHTS DASHBOARD */}
         <Insights entries={entries} />
 
       </div>
