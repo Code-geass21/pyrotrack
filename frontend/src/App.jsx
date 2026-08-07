@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import DataGrid from "./components/DataGrid";
+import LiquidTank from "./components/LiquidTank";
 
 export default function App() {
   const [entries, setEntries] = useState([]);
@@ -40,13 +41,11 @@ export default function App() {
         )}
 
         {/* DASHBOARD LAYOUT */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_2fr] gap-8">
           
-          {/* LEFT COLUMN: Animations & Visuals (Coming Next) */}
+          {/* LEFT COLUMN: Animated Visuals */}
           <div className="space-y-8">
-            <div className="bg-slate-900 p-12 rounded-xl border border-slate-800 shadow-2xl flex items-center justify-center border-dashed">
-              <p className="text-slate-500 italic">Liquid Gas Tank Animation Area</p>
-            </div>
+            <LiquidTank entries={entries} />
           </div>
 
           {/* RIGHT COLUMN: Data Grid */}
