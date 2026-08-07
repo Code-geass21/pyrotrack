@@ -30,22 +30,17 @@ export default function DeliveryTracker({ entries }) {
           <span className="text-[10px] text-slate-500 mt-2 font-bold">ARRIVING</span>
         </div>
 
-        {/* The Animated Retro Truck */}
+        {/* The Animated SVG Truck */}
         <motion.div 
-          className="absolute top-1/2 -translate-y-1/2 z-20"
+          className="absolute top-1/2 -translate-y-1/2 z-20 text-[#00D4FF] drop-shadow-[0_0_10px_rgba(0,212,255,0.8)]"
           initial={{ left: "5%" }}
           animate={{ left: "85%" }}
           transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
         >
-          {/* Bulletproof inline styling to guarantee rendering, flipping, and neon drop-shadow */}
-          <div style={{ 
-            transform: "scaleX(-1)", 
-            fontSize: "2.5rem", 
-            filter: "drop-shadow(0px 0px 8px rgba(0,212,255,0.6))",
-            display: "inline-block"
-          }}>
-            🚚
-          </div>
+          {/* Using a pure SVG that naturally faces right! No CSS flipping required. */}
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
+          </svg>
         </motion.div>
       </div>
     </div>
