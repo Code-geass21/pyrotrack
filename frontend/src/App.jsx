@@ -3,6 +3,7 @@ import DataGrid from "./components/DataGrid";
 import LiquidTank from "./components/LiquidTank";
 import DeliveryTracker from "./components/DeliveryTracker";
 import AuditLogViewer from "./components/AuditLogViewer";
+import Insights from "./components/Insights";
 
 export default function App() {
   const [entries, setEntries] = useState([]);
@@ -29,7 +30,6 @@ export default function App() {
     <div className="min-h-screen bg-[#080C10] p-8 text-white font-sans selection:bg-[#00D4FF] selection:text-black">
       <div className="max-w-6xl mx-auto">
         
-        {/* HEADER */}
         <header className="mb-10 flex justify-between items-end">
           <div>
             <h1 className="text-3xl font-black text-[#00D4FF] tracking-widest drop-shadow-[0_0_10px_rgba(0,212,255,0.3)]">
@@ -51,10 +51,8 @@ export default function App() {
           </div>
         )}
 
-        {/* ARCADE DELIVERY TRACKER */}
         <DeliveryTracker entries={entries} />
 
-        {/* DASHBOARD LAYOUT */}
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_2fr] gap-8">
           <div className="space-y-8">
             <LiquidTank entries={entries} />
@@ -63,9 +61,11 @@ export default function App() {
             <DataGrid entries={entries} refreshData={fetchEntries} />
           </div>
         </div>
-      </div>
 
-      {/* AUDIT MODAL */}
+        {/* NEW INSIGHTS DASHBOARD */}
+        <Insights entries={entries} />
+
+      </div>
       <AuditLogViewer isOpen={isAuditOpen} onClose={() => setIsAuditOpen(false)} />
     </div>
   );
