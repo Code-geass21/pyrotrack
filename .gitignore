@@ -19,3 +19,6 @@ venv/
 .DS_Store
 .vscode/
 .idea/
+*.db
+*.db-shm
+*.db-wal
