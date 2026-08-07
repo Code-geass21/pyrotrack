@@ -155,6 +155,7 @@ async def reboot_container():
     await asyncio.sleep(1.5)
     os._exit(0)
 
+# 🔄 NEW: SMART-PARSING RESTORE ENDPOINT
 @app.post("/api/v1/restore")
 async def restore_backup(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     if not file.filename.endswith('.zip'): raise HTTPException(status_code=400, detail="Must be a .zip file")
@@ -165,9 +166,25 @@ async def restore_backup(background_tasks: BackgroundTasks, file: UploadFile = F
         
     try:
         with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
-            zip_ref.extractall(DATA_DIR)
+            for member in zip_ref.namelist():
+                filename = os.path.basename(member)
+                if not filename: continue # Skip directory placeholders
+                
+                # Dynamically locate and extract database regardless of nesting
+                if "util_data.db" in member:
+                    target_path = os.path.join(DATA_DIR, "util_data.db")
+                    with zip_ref.open(member) as source, open(target_path, "wb") as target:
+                        shutil.copyfileobj(source, target)
+                
+                # Dynamically locate and extract receipts regardless of nesting
+                elif "receipt_" in member or "receipts/" in member:
+                    target_path = os.path.join(RECEIPTS_DIR, filename)
+                    with zip_ref.open(member) as source, open(target_path, "wb") as target:
+                        shutil.copyfileobj(source, target)
+                        
         os.remove(temp_zip_path)
         
+        # Clear SQLite cache files to force fresh disk read
         for cache_file in ["util_data.db-wal", "util_data.db-shm"]:
             cache_path = os.path.join(DATA_DIR, cache_file)
             if os.path.exists(cache_path): os.remove(cache_path)
