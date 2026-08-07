@@ -8,4 +8,10 @@ services:
     container_name: pyrotrack_app
     ports:
       - "8088:8000"
+    volumes:
+      - pyrotrack_db:/app/data
     restart: unless-stopped
+
+# This creates a permanent, managed volume on Jarvis
+volumes:
+  pyrotrack_db:
