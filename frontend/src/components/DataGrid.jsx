@@ -5,11 +5,9 @@ export default function DataGrid({ entries, refreshData }) {
   const [orderDate, setOrderDate] = useState("");
   const [amount, setAmount] = useState("");
 
-  // Track row editing
   const [editRowId, setEditRowId] = useState(null);
   const [editForm, setEditForm] = useState({});
   
-  // Track action dates (so you can backdate "Mark Empty", etc.)
   const [actionDates, setActionDates] = useState({});
   const today = new Date().toISOString().split('T')[0];
 
@@ -31,6 +29,14 @@ export default function DataGrid({ entries, refreshData }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
+    setEditRowId(null);
+    refreshData();
+  };
+
+  // ─── NEW DELETE API CALL ──────────────────────────────────
+  const deleteEntry = async (id) => {
+    if (!window.confirm("WARNING: Are you sure you want to permanently delete this cylinder record?")) return;
+    await fetch(`/api/v1/entries/${id}`, { method: "DELETE" });
     setEditRowId(null);
     refreshData();
   };
@@ -80,7 +86,6 @@ export default function DataGrid({ entries, refreshData }) {
                 <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }} key={entry.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
                   
                   {isEditing ? (
-                    /* ─── FULL ROW EDIT MODE ─── */
                     <>
                       <td className="py-3 pr-2 align-top">
                         <span className="text-xs text-slate-500">Ordered</span>
@@ -99,10 +104,12 @@ export default function DataGrid({ entries, refreshData }) {
                       <td className="py-3 align-top flex flex-col gap-2">
                         <button onClick={()=>updateEntry(entry.id, editForm)} className="bg-emerald-500 text-black px-3 py-1.5 rounded text-xs font-bold hover:bg-emerald-400">Save</button>
                         <button onClick={()=>setEditRowId(null)} className="bg-slate-700 text-white px-3 py-1.5 rounded text-xs hover:bg-slate-600">Cancel</button>
+                        
+                        {/* THE DELETE BUTTON */}
+                        <button onClick={()=>deleteEntry(entry.id)} className="bg-red-500/10 text-red-400 border border-red-500/20 px-3 py-1.5 rounded text-xs hover:bg-red-500/20 mt-2 transition-colors">Delete</button>
                       </td>
                     </>
                   ) : (
-                    /* ─── NORMAL READ-ONLY ROW ─── */
                     <>
                       <td className="py-4 flex items-center gap-2">
                         <button onClick={()=>startEditing(entry)} title="Edit all dates/costs" className="text-slate-500 hover:text-[#00D4FF] bg-slate-800 px-2 py-1 rounded text-xs">✎</button>
@@ -113,7 +120,6 @@ export default function DataGrid({ entries, refreshData }) {
                       <td className="py-4">
                         {!entry.finished && (
                           <div className="flex gap-2 items-center bg-slate-950 p-1.5 rounded-lg border border-slate-800 w-max">
-                            {/* MINI DATE PICKER FOR QUICK ACTIONS */}
                             <input 
                               type="date" 
                               title="Action Date"
@@ -121,7 +127,6 @@ export default function DataGrid({ entries, refreshData }) {
                               onChange={(e)=> setActionDates({...actionDates, [entry.id]: e.target.value})} 
                               className="bg-transparent text-xs p-1 rounded text-slate-400 outline-none cursor-pointer" 
                             />
-                            {/* DYNAMIC ACTION BUTTON */}
                             {!entry.received && (
                               <button onClick={() => updateEntry(entry.id, { received: currentActionDate })} className="text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded hover:bg-emerald-500/20 border border-emerald-500/20">Mark Received</button>
                             )}

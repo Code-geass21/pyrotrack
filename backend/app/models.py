@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, Float, Date
+from sqlalchemy import Column, Integer, Float, Date, String, DateTime, Text
+from datetime import datetime
 from .database import Base
 
 class Entry(Base):
@@ -11,3 +12,12 @@ class Entry(Base):
     commission = Column(Float, nullable=True)
     started = Column(Date, nullable=True)
     finished = Column(Date, nullable=True)
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    action = Column(String, nullable=False)  # 'CREATE', 'UPDATE', 'DELETE'
+    entry_id = Column(Integer, nullable=True)
+    details = Column(Text, nullable=True)    # JSON string of exactly what changed
