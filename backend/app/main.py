@@ -17,7 +17,6 @@ from datetime import date, datetime
 from .database import get_db, engine, Base
 from .models import Entry, AuditLog
 
-# Set up data directories securely inside Docker
 DATA_DIR = "/app/data"
 RECEIPTS_DIR = os.path.join(DATA_DIR, "receipts")
 os.makedirs(RECEIPTS_DIR, exist_ok=True)
@@ -26,11 +25,10 @@ os.makedirs(RECEIPTS_DIR, exist_ok=True)
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # 🛠️ NEW: Safely auto-migrate the database to add the receipt column
         try:
             await conn.execute(text("ALTER TABLE entries ADD COLUMN receipt_path VARCHAR"))
         except Exception:
-            pass # Column already exists, safe to ignore
+            pass 
     yield
 
 app = FastAPI(title="Pyrotrack API", version="1.0.0", lifespan=lifespan)
@@ -112,7 +110,6 @@ async def get_audit_logs(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(AuditLog).order_by(AuditLog.timestamp.desc()))
     return result.scalars().all()
 
-# 📸 NEW: RECEIPT UPLOAD ENDPOINT
 @app.post("/api/v1/entries/{entry_id}/receipt")
 async def upload_receipt(entry_id: int, file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Entry).filter(Entry.id == entry_id))
@@ -135,25 +132,44 @@ async def upload_receipt(entry_id: int, file: UploadFile = File(...), db: AsyncS
     await db.commit()
     return db_entry
 
-# 🗄️ NEW: SYSTEM BACKUP ENDPOINT (.ZIP)
 @app.get("/api/v1/backup")
 async def download_backup():
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
         db_path = os.path.join(DATA_DIR, "util_data.db")
-        if os.path.exists(db_path):
-            zip_file.write(db_path, "util_data.db")
+        if os.path.exists(db_path): zip_file.write(db_path, "util_data.db")
         for root, _, files in os.walk(RECEIPTS_DIR):
             for file in files:
-                file_path = os.path.join(root, file)
-                zip_file.write(file_path, f"receipts/{file}")
-                
+                zip_file.write(os.path.join(root, file), f"receipts/{file}")
     zip_buffer.seek(0)
     return Response(
         content=zip_buffer.getvalue(),
         media_type="application/x-zip-compressed",
         headers={"Content-Disposition": f"attachment; filename=pyrotrack_backup_{datetime.now().strftime('%Y%m%d')}.zip"}
     )
+
+# 🔄 NEW: RESTORE BACKUP ENDPOINT
+@app.post("/api/v1/restore")
+async def restore_backup(file: UploadFile = File(...)):
+    if not file.filename.endswith('.zip'): raise HTTPException(status_code=400, detail="Must be a .zip file")
+    temp_zip_path = os.path.join(DATA_DIR, "temp_restore.zip")
+    
+    with open(temp_zip_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    try:
+        with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
+            zip_ref.extractall(DATA_DIR)
+        os.remove(temp_zip_path)
+        
+        # Nuke SQLite caching files so it forces a fresh read of the new database
+        for cache_file in ["util_data.db-wal", "util_data.db-shm"]:
+            cache_path = os.path.join(DATA_DIR, cache_file)
+            if os.path.exists(cache_path): os.remove(cache_path)
+            
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 ### ─── SERVE REACT FRONTEND & RECEIPTS ──────────────────────
 app.mount("/api/v1/receipts", StaticFiles(directory=RECEIPTS_DIR), name="receipts")
@@ -162,5 +178,4 @@ static_dir = "/frontend_build"
 if os.path.isdir(static_dir):
     app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
     @app.exception_handler(404)
-    async def fallback_to_index(request, exc):
-        return FileResponse(os.path.join(static_dir, "index.html"))
+    async def fallback_to_index(request, exc): return FileResponse(os.path.join(static_dir, "index.html"))

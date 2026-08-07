@@ -17,14 +17,30 @@ export default function App() {
       const data = await res.json();
       setEntries(data);
       setError(null);
-    } catch (err) {
-      setError(err.message);
-    }
+    } catch (err) { setError(err.message); }
   };
 
-  useEffect(() => {
-    fetchEntries();
-  }, []);
+  useEffect(() => { fetchEntries(); }, []);
+
+  // 🔄 NEW: RESTORE BACKUP LOGIC
+  const handleRestore = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (!window.confirm("🚨 WARNING: This will overwrite your current database and all receipts. Proceed?")) return;
+    
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    try {
+      const res = await fetch("/api/v1/restore", { method: "POST", body: formData });
+      if (res.ok) {
+        alert("Backup restored successfully! The page will now reload.");
+        window.location.reload(); // Hard refresh to load the new database
+      } else {
+        alert("Failed to restore backup.");
+      }
+    } catch (err) { alert("Error: " + err.message); }
+  };
 
   return (
     <div className="min-h-screen bg-[#080C10] p-8 text-white font-sans selection:bg-[#00D4FF] selection:text-black">
@@ -39,27 +55,23 @@ export default function App() {
           </div>
           
           <div className="flex gap-3">
-            {/* 🗄️ NEW: SECURE VAULT BACKUP BUTTON */}
-            <a 
-              href="/api/v1/backup"
-              className="text-xs font-bold bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors flex items-center gap-2"
-            >
+            {/* 🔄 NEW: RESTORE BACKUP UPLOAD BUTTON */}
+            <label className="text-xs font-bold bg-amber-500/10 text-amber-400 px-4 py-2 rounded border border-amber-500/20 hover:bg-amber-500/20 transition-colors flex items-center gap-2 cursor-pointer">
+              🔄 Restore Backup
+              <input type="file" accept=".zip" className="hidden" onChange={handleRestore} />
+            </label>
+
+            <a href="/api/v1/backup" className="text-xs font-bold bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors flex items-center gap-2">
               🗄️ Download Backup
             </a>
-            <button 
-              onClick={() => setIsAuditOpen(true)}
-              className="text-xs bg-slate-800 text-slate-300 px-4 py-2 rounded border border-slate-700 hover:border-slate-500 hover:text-white transition-colors"
-            >
+            
+            <button onClick={() => setIsAuditOpen(true)} className="text-xs bg-slate-800 text-slate-300 px-4 py-2 rounded border border-slate-700 hover:border-slate-500 hover:text-white transition-colors">
               🛡️ View Audit Logs
             </button>
           </div>
         </header>
 
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-lg mb-8">
-            <strong>Backend Connection Failed:</strong> {error}
-          </div>
-        )}
+        {error && <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-lg mb-8"><strong>Backend Connection Failed:</strong> {error}</div>}
 
         <DeliveryTracker entries={entries} />
 

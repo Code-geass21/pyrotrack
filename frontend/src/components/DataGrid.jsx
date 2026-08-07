@@ -12,8 +12,7 @@ export default function DataGrid({ entries, refreshData }) {
   const handleNewOrder = async () => {
     if (!orderDate || !amount) return alert("Please fill in both the date and amount.");
     await fetch("/api/v1/entries", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ordered: orderDate, paid: parseFloat(amount) })
     });
     setOrderDate(""); setAmount(""); refreshData();
@@ -21,9 +20,7 @@ export default function DataGrid({ entries, refreshData }) {
 
   const updateEntry = async (id, payload) => {
     await fetch(`/api/v1/entries/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
     });
     setEditRowId(null); refreshData();
   };
@@ -34,14 +31,9 @@ export default function DataGrid({ entries, refreshData }) {
     setEditRowId(null); refreshData();
   };
 
-  // 📸 NEW: FILE UPLOAD LOGIC
   const uploadReceipt = async (id, file) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    await fetch(`/api/v1/entries/${id}/receipt`, {
-      method: "POST",
-      body: formData
-    });
+    const formData = new FormData(); formData.append("file", file);
+    await fetch(`/api/v1/entries/${id}/receipt`, { method: "POST", body: formData });
     refreshData();
   };
 
@@ -54,24 +46,26 @@ export default function DataGrid({ entries, refreshData }) {
   };
 
   return (
-    <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-2xl">
-      <h2 className="text-xl font-bold text-white mb-6 tracking-wide">CYLINDER LOG</h2>
+    <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-2xl h-full flex flex-col">
+      <h2 className="text-xl font-bold text-white mb-6 tracking-wide flex-shrink-0">CYLINDER LOG</h2>
 
-      <div className="flex gap-3 mb-8">
+      <div className="flex gap-3 mb-6 flex-shrink-0">
         <input type="date" className="bg-slate-800 text-white p-2 rounded border border-slate-700 focus:outline-none focus:border-[#00D4FF]" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />
         <input type="number" placeholder="Cost (₹)" className="bg-slate-800 text-white p-2 rounded w-28 border border-slate-700 focus:outline-none focus:border-[#00D4FF]" value={amount} onChange={(e) => setAmount(e.target.value)} />
         <button onClick={handleNewOrder} className="bg-[#00D4FF] text-black px-5 py-2 rounded font-bold hover:bg-cyan-400 shadow-[0_0_15px_rgba(0,212,255,0.4)]">SAVE</button>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm text-slate-300">
-          <thead className="text-[#00D4FF] border-b border-slate-700">
+      {/* 📜 NEW: SCROLLABLE CONTAINER WITH FIXED HEIGHT */}
+      <div className="overflow-x-auto overflow-y-auto max-h-[450px] border border-slate-800 rounded-lg bg-slate-950 flex-1">
+        <table className="w-full text-left text-sm text-slate-300 relative">
+          {/* STICKY HEADER */}
+          <thead className="text-[#00D4FF] border-b border-slate-700 bg-slate-900 sticky top-0 z-10 shadow-sm">
             <tr>
-              <th className="pb-3 w-32">Ordered</th>
-              <th className="pb-3">Cost</th>
-              <th className="pb-3">Receipt</th>
-              <th className="pb-3">Status</th>
-              <th className="pb-3">Actions</th>
+              <th className="p-3 w-32">Ordered</th>
+              <th className="p-3">Cost</th>
+              <th className="p-3">Receipt</th>
+              <th className="p-3">Status</th>
+              <th className="p-3">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -85,62 +79,62 @@ export default function DataGrid({ entries, refreshData }) {
               else if (entry.received) { status = "In Reserve"; statusColor = "text-emerald-400"; }
 
               return (
-                <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }} key={entry.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
-                  
+                <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }} key={entry.id} className="border-b border-slate-800/50 hover:bg-slate-800/40 transition-colors">
                   {isEditing ? (
                     <>
-                      <td className="py-3 pr-2 align-top">
-                        <span className="text-xs text-slate-500">Ordered</span>
-                        <input type="date" value={editForm.ordered} onChange={e=>setEditForm({...editForm, ordered: e.target.value})} className="bg-slate-950 text-xs p-1.5 rounded w-full border border-slate-700 mb-2" />
-                        <span className="text-xs text-slate-500">Cost (₹)</span>
-                        <input type="number" value={editForm.paid} onChange={e=>setEditForm({...editForm, paid: e.target.value})} className="bg-slate-950 text-xs p-1.5 rounded w-full border border-slate-700" />
+                      <td className="p-3 align-top">
+                        <span className="text-[10px] uppercase font-bold text-slate-500">Ordered</span>
+                        <input type="date" value={editForm.ordered} onChange={e=>setEditForm({...editForm, ordered: e.target.value})} className="bg-[#080C10] text-xs p-1.5 rounded w-full border border-slate-700 mb-2 focus:border-[#00D4FF] outline-none" />
+                        <span className="text-[10px] uppercase font-bold text-slate-500">Cost (₹)</span>
+                        <input type="number" value={editForm.paid} onChange={e=>setEditForm({...editForm, paid: e.target.value})} className="bg-[#080C10] text-xs p-1.5 rounded w-full border border-slate-700 focus:border-[#00D4FF] outline-none" />
                       </td>
-                      <td className="py-3 pr-2 align-top" colSpan={3}>
-                        <span className="text-xs text-slate-500">Received</span>
-                        <input type="date" value={editForm.received} onChange={e=>setEditForm({...editForm, received: e.target.value})} className="bg-slate-950 text-xs p-1.5 rounded w-full border border-slate-700 mb-2" />
-                        <span className="text-xs text-slate-500">Connected</span>
-                        <input type="date" value={editForm.started} onChange={e=>setEditForm({...editForm, started: e.target.value})} className="bg-slate-950 text-xs p-1.5 rounded w-full border border-slate-700 mb-2" />
-                        <span className="text-xs text-slate-500">Empty</span>
-                        <input type="date" value={editForm.finished} onChange={e=>setEditForm({...editForm, finished: e.target.value})} className="bg-slate-950 text-xs p-1.5 rounded w-full border border-slate-700" />
+                      <td className="p-3 align-top" colSpan={3}>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-500">Received</span>
+                            <input type="date" value={editForm.received} onChange={e=>setEditForm({...editForm, received: e.target.value})} className="bg-[#080C10] text-xs p-1.5 rounded w-full border border-slate-700 focus:border-[#00D4FF] outline-none" />
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-500">Connected</span>
+                            <input type="date" value={editForm.started} onChange={e=>setEditForm({...editForm, started: e.target.value})} className="bg-[#080C10] text-xs p-1.5 rounded w-full border border-slate-700 focus:border-[#00D4FF] outline-none" />
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-500">Empty</span>
+                            <input type="date" value={editForm.finished} onChange={e=>setEditForm({...editForm, finished: e.target.value})} className="bg-[#080C10] text-xs p-1.5 rounded w-full border border-slate-700 focus:border-[#00D4FF] outline-none" />
+                          </div>
+                        </div>
                       </td>
-                      <td className="py-3 align-top flex flex-col gap-2">
+                      <td className="p-3 align-top flex flex-col gap-2">
                         <button onClick={()=>updateEntry(entry.id, editForm)} className="bg-emerald-500 text-black px-3 py-1.5 rounded text-xs font-bold hover:bg-emerald-400">Save</button>
                         <button onClick={()=>setEditRowId(null)} className="bg-slate-700 text-white px-3 py-1.5 rounded text-xs hover:bg-slate-600">Cancel</button>
-                        <button onClick={()=>deleteEntry(entry.id)} className="bg-red-500/10 text-red-400 border border-red-500/20 px-3 py-1.5 rounded text-xs hover:bg-red-500/20 mt-2 transition-colors">Delete</button>
+                        <button onClick={()=>deleteEntry(entry.id)} className="bg-red-500/10 text-red-400 border border-red-500/20 px-3 py-1.5 rounded text-xs hover:bg-red-500/20 transition-colors">Delete</button>
                       </td>
                     </>
                   ) : (
                     <>
-                      <td className="py-4 flex items-center gap-2">
-                        <button onClick={()=>startEditing(entry)} title="Edit Row" className="text-slate-500 hover:text-[#00D4FF] bg-slate-800 px-2 py-1 rounded text-xs">✎</button>
+                      <td className="p-3 flex items-center gap-2">
+                        <button onClick={()=>startEditing(entry)} title="Edit Row" className="text-slate-500 hover:text-[#00D4FF] bg-[#080C10] px-2 py-1 rounded text-xs border border-slate-800">✎</button>
                         {entry.ordered}
                       </td>
-                      <td className="py-4">₹{entry.paid}</td>
-                      
-                      {/* 📸 NEW: THE RECEIPT UPLOAD COLUMN */}
-                      <td className="py-4">
+                      <td className="p-3">₹{entry.paid}</td>
+                      <td className="p-3">
                         {entry.receipt_path ? (
-                          <a href={entry.receipt_path} target="_blank" rel="noreferrer" className="text-[10px] font-bold bg-[#00D4FF]/10 text-[#00D4FF] px-2 py-1 rounded border border-[#00D4FF]/30 hover:bg-[#00D4FF]/20 transition-colors">
-                            🖼️ VIEW
-                          </a>
+                          <a href={entry.receipt_path} target="_blank" rel="noreferrer" className="text-[10px] font-bold bg-[#00D4FF]/10 text-[#00D4FF] px-2 py-1 rounded border border-[#00D4FF]/30 hover:bg-[#00D4FF]/20 transition-colors">🖼️ VIEW</a>
                         ) : (
                           <label className="text-[10px] font-bold bg-slate-800 text-slate-400 px-2 py-1 rounded border border-slate-700 hover:text-white cursor-pointer transition-colors">
                             📎 ATTACH
-                            <input type="file" accept="image/*,.pdf" className="hidden" onChange={(e) => {
-                              if(e.target.files[0]) uploadReceipt(entry.id, e.target.files[0]);
-                            }} />
+                            <input type="file" accept="image/*,.pdf" className="hidden" onChange={(e) => { if(e.target.files[0]) uploadReceipt(entry.id, e.target.files[0]); }} />
                           </label>
                         )}
                       </td>
-
-                      <td className={`py-4 ${statusColor}`}>{status}</td>
-                      <td className="py-4">
+                      <td className={`p-3 ${statusColor}`}>{status}</td>
+                      <td className="p-3">
                         {!entry.finished && (
-                          <div className="flex gap-2 items-center bg-slate-950 p-1.5 rounded-lg border border-slate-800 w-max">
+                          <div className="flex gap-2 items-center bg-[#080C10] p-1.5 rounded-lg border border-slate-800 w-max">
                             <input type="date" value={currentActionDate} onChange={(e)=> setActionDates({...actionDates, [entry.id]: e.target.value})} className="bg-transparent text-xs p-1 rounded text-slate-400 outline-none cursor-pointer" />
-                            {!entry.received && <button onClick={() => updateEntry(entry.id, { received: currentActionDate })} className="text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded hover:bg-emerald-500/20 border border-emerald-500/20">Mark Received</button>}
-                            {entry.received && !entry.started && <button onClick={() => updateEntry(entry.id, { started: currentActionDate })} className="text-xs bg-amber-500/10 text-amber-400 px-3 py-1.5 rounded hover:bg-amber-500/20 border border-amber-500/20">Connect Tank</button>}
-                            {entry.started && !entry.finished && <button onClick={() => updateEntry(entry.id, { finished: currentActionDate })} className="text-xs bg-red-500/10 text-red-400 px-3 py-1.5 rounded hover:bg-red-500/20 border border-red-500/20">Mark Empty</button>}
+                            {!entry.received && <button onClick={() => updateEntry(entry.id, { received: currentActionDate })} className="text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded hover:bg-emerald-500/20 border border-emerald-500/20">Mark Received</button>}
+                            {entry.received && !entry.started && <button onClick={() => updateEntry(entry.id, { started: currentActionDate })} className="text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-400 px-3 py-1.5 rounded hover:bg-amber-500/20 border border-amber-500/20">Connect Tank</button>}
+                            {entry.started && !entry.finished && <button onClick={() => updateEntry(entry.id, { finished: currentActionDate })} className="text-[10px] font-bold uppercase tracking-wider bg-red-500/10 text-red-400 px-3 py-1.5 rounded hover:bg-red-500/20 border border-red-500/20">Mark Empty</button>}
                           </div>
                         )}
                       </td>
