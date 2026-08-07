@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import text
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import date, datetime
@@ -25,6 +26,11 @@ os.makedirs(RECEIPTS_DIR, exist_ok=True)
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # 🛠️ NEW: Safely auto-migrate the database to add the receipt column
+        try:
+            await conn.execute(text("ALTER TABLE entries ADD COLUMN receipt_path VARCHAR"))
+        except Exception:
+            pass # Column already exists, safe to ignore
     yield
 
 app = FastAPI(title="Pyrotrack API", version="1.0.0", lifespan=lifespan)
@@ -113,22 +119,18 @@ async def upload_receipt(entry_id: int, file: UploadFile = File(...), db: AsyncS
     db_entry = result.scalars().first()
     if not db_entry: raise HTTPException(status_code=404, detail="Entry not found")
 
-    # Generate a safe, unique filename
     file_ext = file.filename.split(".")[-1]
     safe_filename = f"receipt_{entry_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.{file_ext}"
     file_path = os.path.join(RECEIPTS_DIR, safe_filename)
     
-    # Save file to disk
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
         
-    # Update database with the public URL path
     old_path = db_entry.receipt_path
     db_entry.receipt_path = f"/api/v1/receipts/{safe_filename}"
     await db.commit()
     await db.refresh(db_entry)
     
-    # Log the file upload to the Audit table
     db.add(AuditLog(action="UPDATE", entry_id=entry_id, details=json.dumps({"receipt_path": {"old": old_path, "new": db_entry.receipt_path}})))
     await db.commit()
     return db_entry
@@ -138,11 +140,9 @@ async def upload_receipt(entry_id: int, file: UploadFile = File(...), db: AsyncS
 async def download_backup():
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        # 1. Add database
         db_path = os.path.join(DATA_DIR, "util_data.db")
         if os.path.exists(db_path):
             zip_file.write(db_path, "util_data.db")
-        # 2. Add all receipt images
         for root, _, files in os.walk(RECEIPTS_DIR):
             for file in files:
                 file_path = os.path.join(root, file)
