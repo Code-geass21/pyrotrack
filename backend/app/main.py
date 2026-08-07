@@ -3,8 +3,9 @@ import json
 import shutil
 import zipfile
 import io
+import asyncio
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -148,9 +149,14 @@ async def download_backup():
         headers={"Content-Disposition": f"attachment; filename=pyrotrack_backup_{datetime.now().strftime('%Y%m%d')}.zip"}
     )
 
-# 🔄 NEW: RESTORE BACKUP ENDPOINT
+# 🔄 NEW: AUTO-REBOOT TRIGGER
+async def reboot_container():
+    """Waits 1.5 seconds for the HTTP response to send, then kills the app to force a Docker restart."""
+    await asyncio.sleep(1.5)
+    os._exit(0)
+
 @app.post("/api/v1/restore")
-async def restore_backup(file: UploadFile = File(...)):
+async def restore_backup(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     if not file.filename.endswith('.zip'): raise HTTPException(status_code=400, detail="Must be a .zip file")
     temp_zip_path = os.path.join(DATA_DIR, "temp_restore.zip")
     
@@ -158,16 +164,20 @@ async def restore_backup(file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, buffer)
         
     try:
+        # Extract the files safely
         with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
             zip_ref.extractall(DATA_DIR)
         os.remove(temp_zip_path)
         
-        # Nuke SQLite caching files so it forces a fresh read of the new database
+        # Nuke SQLite caching files
         for cache_file in ["util_data.db-wal", "util_data.db-shm"]:
             cache_path = os.path.join(DATA_DIR, cache_file)
             if os.path.exists(cache_path): os.remove(cache_path)
             
+        # Trigger the container reboot immediately after sending the success message
+        background_tasks.add_task(reboot_container)
         return {"status": "success"}
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
