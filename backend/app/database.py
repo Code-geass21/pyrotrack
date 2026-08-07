@@ -3,9 +3,12 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy import text
 
-# Create a protected folder for the database inside the container
-os.makedirs("/app/data", exist_ok=True)
-DATABASE_URL = "sqlite+aiosqlite:////app/data/pyrotrack.db"
+# Ensure the data vault directory exists
+DATA_DIR = "/app/data"
+os.makedirs(DATA_DIR, exist_ok=True)
+
+# 4 slashes indicate an absolute path in SQLAlchemy so it saves exactly in our vault
+DATABASE_URL = f"sqlite+aiosqlite:///{DATA_DIR}/util_data.db"
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 Base = declarative_base()
