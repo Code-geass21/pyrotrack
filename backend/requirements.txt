@@ -4,3 +4,4 @@ sqlalchemy
 alembic
 aiosqlite
 pydantic
+aiofiles

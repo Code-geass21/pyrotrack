@@ -1,13 +1,15 @@
 version: '3.8'
 
 services:
-  backend:
+  pyrotrack:
     build: 
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
-    container_name: pyrotrack_backend
+    container_name: pyrotrack_app
     ports:
-      - "8088:8000" # Host port 8088 routes to Container port 8000
+      - "8088:8000"
     volumes:
-      - ./backend:/app # Live reloads your code!
+      # We only map the backend folder so your SQLite database persists locally.
+      # The React static files are safely isolated in /frontend_build inside the container!
+      - ./backend:/app
     restart: unless-stopped
