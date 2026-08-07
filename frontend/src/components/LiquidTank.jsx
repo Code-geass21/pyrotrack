@@ -9,7 +9,13 @@ export default function LiquidTank({ entries }) {
     const end = new Date(e.finished);
     totalDays += (end - start) / (1000 * 60 * 60 * 24);
   });
-  const historicalAvg = finishedCylinders.length > 0 ? Math.round(totalDays / finishedCylinders.length) : 60; // Defaults to 60 days
+
+  // BUGFIX: Prevent 0-day averages during rapid testing from crashing the app
+  let historicalAvg = 60; // Default to 60 days
+  if (finishedCylinders.length > 0) {
+    const calculatedAvg = Math.round(totalDays / finishedCylinders.length);
+    historicalAvg = calculatedAvg > 0 ? calculatedAvg : 60;
+  }
 
   // 2. Find Active Cylinder
   const activeCylinder = entries.find(e => e.started && !e.finished);
@@ -19,7 +25,7 @@ export default function LiquidTank({ entries }) {
   if (activeCylinder) {
     const start = new Date(activeCylinder.started);
     const today = new Date();
-    daysUsed = Math.floor((today - start) / (1000 * 60 * 60 * 24));
+    daysUsed = Math.max(0, Math.floor((today - start) / (1000 * 60 * 60 * 24)));
     percentage = Math.max(0, 100 - Math.round((daysUsed / historicalAvg) * 100));
   }
 
@@ -45,7 +51,7 @@ export default function LiquidTank({ entries }) {
           className="absolute bottom-0 w-full opacity-90"
           style={{ backgroundColor: liquidColor, filter: "drop-shadow(0 -5px 15px currentColor)" }}
           initial={{ height: 0 }}
-          animate={{ height: `${percentage}%` }}
+          animate={{ height: `${activeCylinder ? percentage : 0}%` }}
           transition={{ duration: 1.5, type: "spring", bounce: 0.3 }}
         >
           {/* Sloshing Wave Layer 1 */}
