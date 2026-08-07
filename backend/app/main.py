@@ -141,7 +141,9 @@ async def download_backup():
         if os.path.exists(db_path): zip_file.write(db_path, "util_data.db")
         for root, _, files in os.walk(RECEIPTS_DIR):
             for file in files:
-                zip_file.write(os.path.join(root, file), f"receipts/{file}")
+                file_path = os.path.join(root, file)
+                arcname = os.path.relpath(file_path, DATA_DIR)
+                zip_file.write(file_path, arcname)
     zip_buffer.seek(0)
     return Response(
         content=zip_buffer.getvalue(),
@@ -149,9 +151,7 @@ async def download_backup():
         headers={"Content-Disposition": f"attachment; filename=pyrotrack_backup_{datetime.now().strftime('%Y%m%d')}.zip"}
     )
 
-# 🔄 NEW: AUTO-REBOOT TRIGGER
 async def reboot_container():
-    """Waits 1.5 seconds for the HTTP response to send, then kills the app to force a Docker restart."""
     await asyncio.sleep(1.5)
     os._exit(0)
 
@@ -164,21 +164,19 @@ async def restore_backup(background_tasks: BackgroundTasks, file: UploadFile = F
         shutil.copyfileobj(file.file, buffer)
         
     try:
-        # Extract the files safely
         with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
             zip_ref.extractall(DATA_DIR)
         os.remove(temp_zip_path)
         
-        # Nuke SQLite caching files
         for cache_file in ["util_data.db-wal", "util_data.db-shm"]:
             cache_path = os.path.join(DATA_DIR, cache_file)
             if os.path.exists(cache_path): os.remove(cache_path)
             
-        # Trigger the container reboot immediately after sending the success message
         background_tasks.add_task(reboot_container)
         return {"status": "success"}
         
     except Exception as e:
+        if os.path.exists(temp_zip_path): os.remove(temp_zip_path)
         raise HTTPException(status_code=500, detail=str(e))
 
 ### ─── SERVE REACT FRONTEND & RECEIPTS ──────────────────────
