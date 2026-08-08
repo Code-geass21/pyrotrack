@@ -39,7 +39,8 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    # Changed from datetime.utcnow to datetime.now
+    timestamp = Column(DateTime, default=datetime.now)
     action = Column(String, nullable=False)
     entry_id = Column(Integer, nullable=True)
     details = Column(Text, nullable=True)

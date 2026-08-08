@@ -151,7 +151,9 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
     user = result.scalars().first()
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Incorrect username or password")
-    token = jwt.encode({"sub": str(user.id), "exp": datetime.utcnow() + timedelta(days=30)}, SECRET_KEY, algorithm=ALGORITHM)
+
+    # Changed datetime.utcnow() to datetime.now()
+    token = jwt.encode({"sub": str(user.id), "exp": datetime.now() + timedelta(days=30)}, SECRET_KEY, algorithm=ALGORITHM)
     return {"access_token": token, "token_type": "bearer"}
 
 @app.get("/api/v1/users/me", response_model=UserResponse)
