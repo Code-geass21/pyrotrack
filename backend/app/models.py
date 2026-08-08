@@ -1,18 +1,39 @@
-from sqlalchemy import Column, Integer, Float, Date, String, DateTime, Text
+from sqlalchemy import Column, Integer, Float, Date, String, DateTime, Text, ForeignKey
+from sqlalchemy.orm import relationship
 from datetime import datetime
 from .database import Base
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    username = Column(String, unique=True, index=True)
+    password_hash = Column(String)
 
 class Entry(Base):
     __tablename__ = "entries"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), default=1)
+
+    # Dates & Finances
     ordered = Column(Date, nullable=True)
     paid = Column(Float, nullable=True)
+    commission = Column(Float, default=0.0) # Feature 1: Commission
     received = Column(Date, nullable=True)
-    commission = Column(Float, nullable=True)
     started = Column(Date, nullable=True)
     finished = Column(Date, nullable=True)
-    receipt_path = Column(String, nullable=True) # 📸 NEW: Stores the image filename
+    receipt_path = Column(String, nullable=True)
+
+    # Feature 2: Cylinder & Agency Information
+    brand = Column(String, nullable=True)
+    agency = Column(String, nullable=True)
+    cylinder_number = Column(String, nullable=True)
+    registered_name = Column(String, nullable=True)
+    agency_location = Column(String, nullable=True)
+    agency_number = Column(String, nullable=True)
+    delivery_boy_name = Column(String, nullable=True)
+    delivery_boy_number = Column(String, nullable=True)
+    notes = Column(Text, nullable=True)
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
