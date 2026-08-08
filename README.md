@@ -104,8 +104,4 @@ Pyrotrack features a robust data sovereignty system:
 
 ## 📄 License
 
-This project is built for personal data sovereignty. Feel free to fork, modify, and host it on your own private infrastructure.
-
-```
-
-```
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
