@@ -45,7 +45,7 @@ def get_password_hash(password: str) -> str:
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
+        
         # SELF-HEALING DB MIGRATION: Safely injects new columns into old backups!
         new_columns = [
             ("user_id", "INTEGER DEFAULT 1"), ("commission", "FLOAT DEFAULT 0.0"),
@@ -57,7 +57,7 @@ async def lifespan(app: FastAPI):
         for col, col_type in new_columns:
             try: await conn.execute(text(f"ALTER TABLE entries ADD COLUMN {col} {col_type}"))
             except Exception: pass
-
+            
     # CREATE DEFAULT "FAMILY" USER FOR OLD DATA RECOVERY
     async with async_session() as db:
         result = await db.execute(select(User).filter(User.id == 1))
@@ -65,7 +65,7 @@ async def lifespan(app: FastAPI):
             default_user = User(id=1, username="family", password_hash=get_password_hash("password"))
             db.add(default_user)
             await db.commit()
-
+            
     yield
 
 app = FastAPI(title="Pyrotrack API", version="2.0.1", lifespan=lifespan)
@@ -77,7 +77,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         user_id: str = payload.get("sub")
         if user_id is None: raise HTTPException(status_code=401)
     except Exception: raise HTTPException(status_code=401, detail="Invalid token")
-
+    
     result = await db.execute(select(User).filter(User.id == int(user_id)))
     user = result.scalars().first()
     if user is None: raise HTTPException(status_code=401)
@@ -87,6 +87,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
 class UserCreate(BaseModel):
     username: str
     password: str
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    password: Optional[str] = None
 
 class EntryBase(BaseModel):
     ordered: Optional[date] = None
@@ -138,9 +142,24 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
     user = result.scalars().first()
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Incorrect username or password")
-
+    
     token = jwt.encode({"sub": str(user.id), "exp": datetime.utcnow() + timedelta(days=30)}, SECRET_KEY, algorithm=ALGORITHM)
     return {"access_token": token, "token_type": "bearer"}
+
+@app.put("/api/v1/users/me")
+async def update_credentials(user_update: UserUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if user_update.username:
+        result = await db.execute(select(User).filter(User.username == user_update.username))
+        existing_user = result.scalars().first()
+        if existing_user and existing_user.id != current_user.id:
+            raise HTTPException(status_code=400, detail="Username is already taken")
+        current_user.username = user_update.username
+    
+    if user_update.password:
+        current_user.password_hash = get_password_hash(user_update.password)
+        
+    await db.commit()
+    return {"status": "success", "message": "Credentials updated"}
 
 ### ─── API ROUTES (PROTECTED) ───────────────────────────────
 @app.get("/api/v1/entries", response_model=List[EntryResponse])
@@ -171,7 +190,7 @@ async def update_entry(entry_id: int, entry_data: EntryUpdate, db: AsyncSession 
 
     new_data = {c.name: getattr(db_entry, c.name) for c in Entry.__table__.columns}
     changes = {k: {"old": old_data[k], "new": new_data[k]} for k in new_data if old_data[k] != new_data[k] and k != "id"}
-
+     
     if changes:
         db.add(AuditLog(action="UPDATE", entry_id=entry_id, details=json.dumps(changes, default=str)))
         await db.commit()
@@ -182,7 +201,7 @@ async def delete_entry(entry_id: int, db: AsyncSession = Depends(get_db), curren
     result = await db.execute(select(Entry).filter(Entry.id == entry_id, Entry.user_id == current_user.id))
     db_entry = result.scalars().first()
     if not db_entry: raise HTTPException(status_code=404, detail="Entry not found")
-
+     
     old_data = {c.name: getattr(db_entry, c.name) for c in Entry.__table__.columns}
     await db.delete(db_entry)
     db.add(AuditLog(action="DELETE", entry_id=entry_id, details=json.dumps(old_data, default=str)))
@@ -203,14 +222,14 @@ async def upload_receipt(entry_id: int, file: UploadFile = File(...), db: AsyncS
     file_ext = file.filename.split(".")[-1]
     safe_filename = f"receipt_{entry_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.{file_ext}"
     file_path = os.path.join(RECEIPTS_DIR, safe_filename)
-
+     
     contents = await file.read()
     with open(file_path, "wb") as f: f.write(contents)
-
+         
     old_path = db_entry.receipt_path
     db_entry.receipt_path = f"/api/v1/receipts/{safe_filename}"
     await db.commit()
-
+     
     db.add(AuditLog(action="UPDATE", entry_id=entry_id, details=json.dumps({"receipt_path": {"old": old_path, "new": db_entry.receipt_path}})))
     await db.commit()
     return db_entry
@@ -222,9 +241,8 @@ async def download_backup():
         async with engine.connect() as conn:
             await conn.execute(text("PRAGMA wal_checkpoint(TRUNCATE);"))
             await conn.commit()
-    except Exception:
-        pass
-
+    except Exception: pass
+     
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
         for db_file in ["util_data.db", "util_data.db-wal", "util_data.db-shm"]:
@@ -266,13 +284,13 @@ async def restore_backup(background_tasks: BackgroundTasks, file: UploadFile = F
     if not file.filename.endswith('.zip'): raise HTTPException(status_code=400, detail="Must be a .zip file")
     temp_zip_path = os.path.join(DATA_DIR, "temp_restore.zip")
     temp_extract_dir = os.path.join(DATA_DIR, "temp_extract")
-
+    
     if os.path.exists(temp_extract_dir): shutil.rmtree(temp_extract_dir, ignore_errors=True)
     os.makedirs(temp_extract_dir, exist_ok=True)
-
+    
     contents = await file.read()
     with open(temp_zip_path, "wb") as f: f.write(contents)
-
+        
     try:
         valid_db_found = False
         with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
@@ -284,7 +302,7 @@ async def restore_backup(background_tasks: BackgroundTasks, file: UploadFile = F
                     with zip_ref.open(member) as source, open(os.path.join(temp_extract_dir, filename), "wb") as target: shutil.copyfileobj(source, target)
                 elif "receipt_" in member or "receipts/" in member:
                     with zip_ref.open(member) as source, open(os.path.join(temp_extract_dir, filename), "wb") as target: shutil.copyfileobj(source, target)
-
+                        
         if not valid_db_found: raise Exception("Invalid backup file: util_data.db not found.")
         os.remove(temp_zip_path)
         background_tasks.add_task(execute_restore_and_reboot, temp_extract_dir)

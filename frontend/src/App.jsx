@@ -1,16 +1,18 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import DataGrid from "./components/DataGrid";
 import LiquidTank from "./components/LiquidTank";
 import DeliveryTracker from "./components/DeliveryTracker";
 import AuditLogViewer from "./components/AuditLogViewer";
 import Insights from "./components/Insights";
 import Auth from "./components/Auth";
+import AccountSettings from "./components/AccountSettings";
 
 export default function App() {
   const [token, setTokenState] = useState(localStorage.getItem("pyro_token"));
   const [entries, setEntries] = useState([]);
   const [error, setError] = useState(null);
   const [isAuditOpen, setIsAuditOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isRebooting, setIsRebooting] = useState(false);
 
   const setToken = (newToken) => {
@@ -75,6 +77,9 @@ export default function App() {
             <button onClick={() => setIsAuditOpen(true)} className="text-xs bg-slate-800 text-slate-300 px-4 py-2 rounded border border-slate-700 hover:border-slate-500 hover:text-white transition-colors">
               🛡️ View Audit Logs
             </button>
+            <button onClick={() => setIsSettingsOpen(true)} className="text-xs bg-indigo-500/10 text-indigo-400 px-4 py-2 rounded border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors">
+              ⚙️ Account
+            </button>
             <button onClick={() => setToken(null)} className="text-xs bg-red-500/10 text-red-400 px-4 py-2 rounded border border-red-500/20 hover:bg-red-500/20 transition-colors">
               Log Out
             </button>
@@ -97,6 +102,7 @@ export default function App() {
         <Insights entries={entries} />
       </div>
       <AuditLogViewer isOpen={isAuditOpen} onClose={() => setIsAuditOpen(false)} token={token} />
+      <AccountSettings isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} token={token} setToken={setToken} />
     </div>
   );
 }
