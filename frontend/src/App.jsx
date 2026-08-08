@@ -7,6 +7,7 @@ import Insights from "./components/Insights";
 import Auth from "./components/Auth";
 import AccountSettings from "./components/AccountSettings";
 import GasConnectionInfo from "./components/GasConnectionInfo";
+import HorizontalClock from "./components/HorizontalClock";
 
 export default function App() {
   const [token, setTokenState] = useState(localStorage.getItem("pyro_token"));
@@ -69,25 +70,31 @@ export default function App() {
             <h1 className="text-3xl font-black text-[#00D4FF] tracking-widest drop-shadow-[0_0_10px_rgba(0,212,255,0.3)]">PYROTRACK</h1>
             <p className="text-slate-500 text-sm mt-1">Cooking Gas Intelligence & Logistics</p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <label className="text-xs font-bold bg-amber-500/10 text-amber-400 px-4 py-2 rounded border border-amber-500/20 hover:bg-amber-500/20 transition-colors flex items-center gap-2 cursor-pointer">
-              🔄 Restore Backup <input type="file" accept=".zip" className="hidden" onChange={handleRestore} />
-            </label>
-            <a href="/api/v1/backup" className="text-xs font-bold bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors flex items-center gap-2">
-              💾 Download Backup
-            </a>
-            <button onClick={() => setIsGasInfoOpen(true)} className="text-xs bg-cyan-500/10 text-cyan-400 px-4 py-2 rounded border border-cyan-500/20 hover:bg-cyan-500/20 transition-colors">
-              📋 Connection Info
-            </button>
-            <button onClick={() => setIsAuditOpen(true)} className="text-xs bg-slate-800 text-slate-300 px-4 py-2 rounded border border-slate-700 hover:border-slate-500 hover:text-white transition-colors">
-              🛡️ View Audit Logs
-            </button>
-            <button onClick={() => setIsSettingsOpen(true)} className="text-xs bg-indigo-500/10 text-indigo-400 px-4 py-2 rounded border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors">
-              ⚙️ Account
-            </button>
-            <button onClick={() => setToken(null)} className="text-xs bg-red-500/10 text-red-400 px-4 py-2 rounded border border-red-500/20 hover:bg-red-500/20 transition-colors">
-              Log Out
-            </button>
+          
+          <div className="flex flex-col items-end gap-4">
+            {/* LIVE HORIZONTAL CLOCK */}
+            <HorizontalClock />
+
+            <div className="flex flex-wrap justify-end gap-3">
+              <label className="text-xs font-bold bg-amber-500/10 text-amber-400 px-4 py-2 rounded border border-amber-500/20 hover:bg-amber-500/20 transition-colors flex items-center gap-2 cursor-pointer">
+                🔄 Restore Backup <input type="file" accept=".zip" className="hidden" onChange={handleRestore} />
+              </label>
+              <a href="/api/v1/backup" className="text-xs font-bold bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors flex items-center gap-2">
+                💾 Download Backup
+              </a>
+              <button onClick={() => setIsGasInfoOpen(true)} className="text-xs bg-cyan-500/10 text-cyan-400 px-4 py-2 rounded border border-cyan-500/20 hover:bg-cyan-500/20 transition-colors">
+                📋 Connection Info
+              </button>
+              <button onClick={() => setIsAuditOpen(true)} className="text-xs bg-slate-800 text-slate-300 px-4 py-2 rounded border border-slate-700 hover:border-slate-500 hover:text-white transition-colors">
+                🛡️ View Audit Logs
+              </button>
+              <button onClick={() => setIsSettingsOpen(true)} className="text-xs bg-indigo-500/10 text-indigo-400 px-4 py-2 rounded border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors">
+                ⚙️ Account
+              </button>
+              <button onClick={() => setToken(null)} className="text-xs bg-red-500/10 text-red-400 px-4 py-2 rounded border border-red-500/20 hover:bg-red-500/20 transition-colors">
+                Log Out
+              </button>
+            </div>
           </div>
         </header>
 
