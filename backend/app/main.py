@@ -26,7 +26,7 @@ RECEIPTS_DIR = os.path.join(DATA_DIR, "receipts")
 os.makedirs(RECEIPTS_DIR, exist_ok=True)
 
 # Auth Settings
-SECRET_KEY = "pyrotrack-local-secure-key"
+SECRET_KEY = "pyrotrack-local-secure-key-change-this-to-something-longer-32bytes"
 ALGORITHM = "HS256"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/token")
 
@@ -220,8 +220,10 @@ async def upload_receipt(entry_id: int, file: UploadFile = File(...), db: AsyncS
 async def download_backup():
     try:
         async with engine.connect() as conn:
-            await conn.execution_options(isolation_level="AUTOCOMMIT").execute(text("PRAGMA wal_checkpoint(TRUNCATE);"))
-    except Exception: pass
+            await conn.execute(text("PRAGMA wal_checkpoint(TRUNCATE);"))
+            await conn.commit()
+    except Exception:
+        pass
 
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
