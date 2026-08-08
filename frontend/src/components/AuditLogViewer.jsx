@@ -1,14 +1,34 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function AuditLogViewer({ isOpen, onClose }) {
+export default function AuditLogViewer({ isOpen, onClose, token }) {
   const [logs, setLogs] = useState([]);
 
   useEffect(() => {
-    if (isOpen) {
-      fetch("/api/v1/audit").then(res => res.json()).then(setLogs);
+    if (isOpen && token) {
+      fetch("/api/v1/audit", {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      })
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to fetch logs");
+        return res.json();
+      })
+      .then(data => {
+        // Ensure data is an array before trying to map it
+        if (Array.isArray(data)) {
+          setLogs(data);
+        } else {
+          setLogs([]);
+        }
+      })
+      .catch(err => {
+        console.error("Audit log error:", err);
+        setLogs([]);
+      });
     }
-  }, [isOpen]);
+  }, [isOpen, token]);
 
   return (
     <AnimatePresence>
