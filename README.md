@@ -13,6 +13,18 @@ Pyrotrack is a comprehensive, self-hosted household logistics platform. It trans
 
 ---
 
+## 📸 Screenshots
+
+### 📊 Live Dashboard & Tank Visualizer
+> *The fluid-animated LPG cylinder, live Indian Standard Time (IST) clock, and intelligence trends.*
+![Pyrotrack Dashboard](docs/dashboard.png) <!-- ⚠️ Note: Create a 'docs' folder in your repo and place your dashboard.png image there -->
+
+### 📋 Data Grid & Connection Vault
+> *The centralized cylinder log, financial tracking, receipt vault, and one-time agency metadata.*
+![Pyrotrack Data Page](docs/data-page.png) <!-- ⚠️ Note: Place your data-page.png image in the 'docs' folder -->
+
+---
+
 ## ✨ Key Features
 
 *   **📊 Smart Logistics & Lifespan Tracking:** Track the exact lifecycle of your cylinders from `Ordered` ➔ `In Transit` ➔ `Received` ➔ `Connected` ➔ `Empty`.
@@ -63,7 +75,6 @@ services:
 
 volumes:
   pyrotrack_db:
-
 ```
 
 ### 2. Deployment
