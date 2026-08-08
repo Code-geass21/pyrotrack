@@ -18,6 +18,12 @@ RUN npm run build
 FROM python:3.11-slim
 WORKDIR /app
 
+# 🛠️ THE FIX: Install system dependencies required to compile bcrypt
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install Python dependencies
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
