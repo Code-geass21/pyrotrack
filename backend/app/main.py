@@ -25,19 +25,15 @@ DATA_DIR = "/app/data"
 RECEIPTS_DIR = os.path.join(DATA_DIR, "receipts")
 os.makedirs(RECEIPTS_DIR, exist_ok=True)
 
-# Auth Settings
 SECRET_KEY = "pyrotrack-local-secure-key-change-this-to-something-longer-32bytes"
 ALGORITHM = "HS256"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/token")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    try:
-        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
-    except Exception:
-        return False
+    try: return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception: return False
 
 def get_password_hash(password: str) -> str:
-    # Safely truncate to 72 bytes to satisfy strict bcrypt byte limits
     pwd_bytes = password.encode('utf-8')[:72]
     return bcrypt.hashpw(pwd_bytes, bcrypt.gensalt()).decode('utf-8')
 
@@ -46,31 +42,32 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         
-        # SELF-HEALING DB MIGRATION: Safely injects new columns into old backups!
-        new_columns = [
-            ("user_id", "INTEGER DEFAULT 1"), ("commission", "FLOAT DEFAULT 0.0"),
+        # SELF-HEALING DB MIGRATION
+        new_user_columns = [
             ("brand", "VARCHAR"), ("agency", "VARCHAR"), ("cylinder_number", "VARCHAR"),
             ("registered_name", "VARCHAR"), ("agency_location", "VARCHAR"),
             ("agency_number", "VARCHAR"), ("delivery_boy_name", "VARCHAR"),
-            ("delivery_boy_number", "VARCHAR"), ("notes", "TEXT"), ("receipt_path", "VARCHAR")
+            ("delivery_boy_number", "VARCHAR"), ("notes", "TEXT")
         ]
-        for col, col_type in new_columns:
+        for col, col_type in new_user_columns:
+            try: await conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {col_type}"))
+            except Exception: pass
+            
+        new_entry_columns = [("user_id", "INTEGER DEFAULT 1"), ("commission", "FLOAT DEFAULT 0.0"), ("receipt_path", "VARCHAR")]
+        for col, col_type in new_entry_columns:
             try: await conn.execute(text(f"ALTER TABLE entries ADD COLUMN {col} {col_type}"))
             except Exception: pass
             
-    # CREATE DEFAULT "FAMILY" USER FOR OLD DATA RECOVERY
     async with async_session() as db:
         result = await db.execute(select(User).filter(User.id == 1))
         if not result.scalars().first():
-            default_user = User(id=1, username="family", password_hash=get_password_hash("password"))
-            db.add(default_user)
+            db.add(User(id=1, username="family", password_hash=get_password_hash("password")))
             await db.commit()
-            
     yield
 
-app = FastAPI(title="Pyrotrack API", version="2.0.1", lifespan=lifespan)
+app = FastAPI(title="Pyrotrack API", version="2.0.2", lifespan=lifespan)
 
-### ─── AUTHENTICATION DEPENDENCIES ──────────────────────────
+### ─── AUTH DEPENDENCIES ──────────────────────────
 async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -88,18 +85,8 @@ class UserCreate(BaseModel):
     username: str
     password: str
 
-class UserUpdate(BaseModel):
-    username: Optional[str] = None
-    password: Optional[str] = None
-
-class EntryBase(BaseModel):
-    ordered: Optional[date] = None
-    paid: Optional[float] = None
-    commission: Optional[float] = 0.0
-    received: Optional[date] = None
-    started: Optional[date] = None
-    finished: Optional[date] = None
-    receipt_path: Optional[str] = None
+class UserResponse(BaseModel):
+    username: str
     brand: Optional[str] = None
     agency: Optional[str] = None
     cylinder_number: Optional[str] = None
@@ -109,6 +96,29 @@ class EntryBase(BaseModel):
     delivery_boy_name: Optional[str] = None
     delivery_boy_number: Optional[str] = None
     notes: Optional[str] = None
+    class Config: from_attributes = True
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    password: Optional[str] = None
+    brand: Optional[str] = None
+    agency: Optional[str] = None
+    cylinder_number: Optional[str] = None
+    registered_name: Optional[str] = None
+    agency_location: Optional[str] = None
+    agency_number: Optional[str] = None
+    delivery_boy_name: Optional[str] = None
+    delivery_boy_number: Optional[str] = None
+    notes: Optional[str] = None
+
+class EntryBase(BaseModel):
+    ordered: Optional[date] = None
+    paid: Optional[float] = None
+    commission: Optional[float] = 0.0
+    received: Optional[date] = None
+    started: Optional[date] = None
+    finished: Optional[date] = None
+    receipt_path: Optional[str] = None
 
 class EntryCreate(EntryBase): pass
 class EntryUpdate(EntryBase): pass
@@ -126,13 +136,12 @@ class AuditLogResponse(BaseModel):
     details: Optional[str]
     class Config: from_attributes = True
 
-### ─── AUTH ROUTES ──────────────────────────────────────────
+### ─── AUTH & PROFILE ROUTES ──────────────────────────────────────────
 @app.post("/api/v1/register")
 async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).filter(User.username == user.username))
     if result.scalars().first(): raise HTTPException(status_code=400, detail="Username taken")
-    new_user = User(username=user.username, password_hash=get_password_hash(user.password))
-    db.add(new_user)
+    db.add(User(username=user.username, password_hash=get_password_hash(user.password)))
     await db.commit()
     return {"message": "User created successfully"}
 
@@ -142,24 +151,46 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
     user = result.scalars().first()
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Incorrect username or password")
-    
     token = jwt.encode({"sub": str(user.id), "exp": datetime.utcnow() + timedelta(days=30)}, SECRET_KEY, algorithm=ALGORITHM)
     return {"access_token": token, "token_type": "bearer"}
 
+@app.get("/api/v1/users/me", response_model=UserResponse)
+async def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
 @app.put("/api/v1/users/me")
-async def update_credentials(user_update: UserUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if user_update.username:
-        result = await db.execute(select(User).filter(User.username == user_update.username))
+async def update_profile(user_update: UserUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    update_data = user_update.dict(exclude_unset=True)
+    changes = {}
+    
+    if "username" in update_data:
+        result = await db.execute(select(User).filter(User.username == update_data["username"]))
         existing_user = result.scalars().first()
         if existing_user and existing_user.id != current_user.id:
             raise HTTPException(status_code=400, detail="Username is already taken")
-        current_user.username = user_update.username
+        if current_user.username != update_data["username"]:
+            changes["username"] = {"old": current_user.username, "new": update_data["username"]}
+            current_user.username = update_data["username"]
     
-    if user_update.password:
-        current_user.password_hash = get_password_hash(user_update.password)
+    if "password" in update_data:
+        current_user.password_hash = get_password_hash(update_data["password"])
+        changes["password"] = {"old": "***", "new": "***"}
         
-    await db.commit()
-    return {"status": "success", "message": "Credentials updated"}
+    for field in ["brand", "agency", "cylinder_number", "registered_name", "agency_location", "agency_number", "delivery_boy_name", "delivery_boy_number", "notes"]:
+        if field in update_data:
+            old_val = getattr(current_user, field)
+            new_val = update_data[field]
+            if old_val != new_val:
+                changes[field] = {"old": old_val, "new": new_val}
+                setattr(current_user, field, new_val)
+        
+    if changes:
+        db.add(AuditLog(action="UPDATE_PROFILE", entry_id=current_user.id, details=json.dumps(changes, default=str)))
+        await db.commit()
+    else:
+        await db.commit()
+        
+    return {"status": "success", "message": "Profile updated"}
 
 ### ─── API ROUTES (PROTECTED) ───────────────────────────────
 @app.get("/api/v1/entries", response_model=List[EntryResponse])

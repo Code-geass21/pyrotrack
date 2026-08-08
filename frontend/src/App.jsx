@@ -6,6 +6,7 @@ import AuditLogViewer from "./components/AuditLogViewer";
 import Insights from "./components/Insights";
 import Auth from "./components/Auth";
 import AccountSettings from "./components/AccountSettings";
+import GasConnectionInfo from "./components/GasConnectionInfo";
 
 export default function App() {
   const [token, setTokenState] = useState(localStorage.getItem("pyro_token"));
@@ -13,6 +14,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [isAuditOpen, setIsAuditOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isGasInfoOpen, setIsGasInfoOpen] = useState(false);
   const [isRebooting, setIsRebooting] = useState(false);
 
   const setToken = (newToken) => {
@@ -61,19 +63,22 @@ export default function App() {
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto">
-        <header className="mb-10 flex justify-between items-end">
+      <div className="max-w-7xl mx-auto">
+        <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
           <div>
             <h1 className="text-3xl font-black text-[#00D4FF] tracking-widest drop-shadow-[0_0_10px_rgba(0,212,255,0.3)]">PYROTRACK</h1>
             <p className="text-slate-500 text-sm mt-1">Cooking Gas Intelligence & Logistics</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <label className="text-xs font-bold bg-amber-500/10 text-amber-400 px-4 py-2 rounded border border-amber-500/20 hover:bg-amber-500/20 transition-colors flex items-center gap-2 cursor-pointer">
               🔄 Restore Backup <input type="file" accept=".zip" className="hidden" onChange={handleRestore} />
             </label>
             <a href="/api/v1/backup" className="text-xs font-bold bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors flex items-center gap-2">
               💾 Download Backup
             </a>
+            <button onClick={() => setIsGasInfoOpen(true)} className="text-xs bg-cyan-500/10 text-cyan-400 px-4 py-2 rounded border border-cyan-500/20 hover:bg-cyan-500/20 transition-colors">
+              📋 Connection Info
+            </button>
             <button onClick={() => setIsAuditOpen(true)} className="text-xs bg-slate-800 text-slate-300 px-4 py-2 rounded border border-slate-700 hover:border-slate-500 hover:text-white transition-colors">
               🛡️ View Audit Logs
             </button>
@@ -103,6 +108,7 @@ export default function App() {
       </div>
       <AuditLogViewer isOpen={isAuditOpen} onClose={() => setIsAuditOpen(false)} token={token} />
       <AccountSettings isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} token={token} setToken={setToken} />
+      <GasConnectionInfo isOpen={isGasInfoOpen} onClose={() => setIsGasInfoOpen(false)} token={token} />
     </div>
   );
 }
