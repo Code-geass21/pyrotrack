@@ -31,7 +31,7 @@ export default function Insights({ entries }) {
           <h3 className="text-xs text-slate-500 font-bold mb-4">CYLINDER LIFESPAN (DAYS)</h3>
           <div className="h-48 w-full">
             <ResponsiveContainer>
-              <BarChart data={chartData.slice(-5)}>
+              <BarChart data={chartData.slice(-12)}>
                 <XAxis dataKey="name" stroke="#475569" fontSize={10} tickLine={false} axisLine={false} />
                 <Tooltip cursor={{fill: '#1e293b'}} contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '8px', color: '#00D4FF' }} />
                 <Bar dataKey="days" fill="#00D4FF" radius={[4, 4, 0, 0]} />
@@ -45,7 +45,7 @@ export default function Insights({ entries }) {
           <h3 className="text-xs text-slate-500 font-bold mb-4">PRICE INFLATION TRACKER (₹)</h3>
           <div className="h-48 w-full">
             <ResponsiveContainer>
-              <LineChart data={chartData}>
+              <LineChart data={chartData.slice(-24)}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                 <XAxis dataKey="name" stroke="#475569" fontSize={10} tickLine={false} axisLine={false} />
                 <YAxis stroke="#475569" fontSize={10} tickLine={false} axisLine={false} domain={['dataMin - 50', 'dataMax + 50']} />
