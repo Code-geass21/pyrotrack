@@ -61,10 +61,48 @@ export default function Insights({ entries }) {
     ];
   }, [entries]);
 
-  const PIE_COLORS = ['#00D4FF', '#A855F7']; // Cyan and Purple
+  // 4. CALCULATE AUTOMATED INSIGHTS
+  const smartInsights = useMemo(() => {
+    const finished = entries.filter(e => e.started && e.finished);
+    const received = entries.filter(e => e.ordered && e.received);
+    const active = entries.find(e => e.started && !e.finished);
+
+    let bestEfficiency = null;
+    let worstEfficiency = null;
+    
+    finished.forEach(e => {
+      const days = Math.max(1, Math.round((new Date(e.finished) - new Date(e.started)) / (1000 * 60 * 60 * 24)));
+      const cost = (e.paid || 0) + (e.commission || 0);
+      const costPerDay = Math.round(cost / days);
+
+      if (!bestEfficiency || costPerDay < bestEfficiency.costPerDay) {
+        bestEfficiency = { date: e.finished, days, cost, costPerDay };
+      }
+      if (!worstEfficiency || costPerDay > worstEfficiency.costPerDay) {
+        worstEfficiency = { date: e.finished, days, cost, costPerDay };
+      }
+    });
+
+    let slowestDelivery = null;
+    received.forEach(e => {
+      const days = Math.max(0, Math.round((new Date(e.received) - new Date(e.ordered)) / (1000 * 60 * 60 * 24)));
+      if (!slowestDelivery || days > slowestDelivery.days) {
+        slowestDelivery = { date: e.ordered, days };
+      }
+    });
+
+    let activeDays = 0;
+    if (active) {
+      activeDays = Math.max(0, Math.floor((new Date() - new Date(active.started)) / (1000 * 60 * 60 * 24)));
+    }
+
+    return { bestEfficiency, worstEfficiency, slowestDelivery, active, activeDays };
+  }, [entries]);
+
+  const PIE_COLORS = ['#00D4FF', '#A855F7']; 
 
   return (
-    <div className="mt-8 space-y-8">
+    <div className="mt-8 space-y-8 mb-12">
       {/* 🚀 ROW 1: KEY METRICS SUMMARY CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-2xl">
@@ -94,8 +132,6 @@ export default function Insights({ entries }) {
 
       {/* 🚀 ROW 2: LIFESPAN BAR CHART & COST BREAKDOWN DONUT */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Lifespan Bar Chart (Takes up 2 columns) */}
         <div className="lg:col-span-2 bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-2xl">
           <h2 className="text-[#00D4FF] font-black tracking-widest text-sm mb-6 uppercase">Cylinder Lifespan (Days)</h2>
           <div className="h-64">
@@ -110,7 +146,6 @@ export default function Insights({ entries }) {
           </div>
         </div>
 
-        {/* Cost Breakdown Donut Chart (Takes up 1 column) */}
         <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-2xl flex flex-col">
           <h2 className="text-[#00D4FF] font-black tracking-widest text-sm mb-2 uppercase">Cost Breakdown</h2>
           <div className="flex-1 min-h-[200px]">
@@ -136,7 +171,6 @@ export default function Insights({ entries }) {
             </ResponsiveContainer>
           </div>
         </div>
-
       </div>
 
       {/* 🚀 ROW 3: INFLATION TRACKER */}
@@ -154,6 +188,64 @@ export default function Insights({ entries }) {
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* 🚀 ROW 4: AUTOMATED INSIGHTS */}
+      <div>
+        <h2 className="text-slate-500 font-bold tracking-widest text-xs mb-4 uppercase ml-2">Automated Insights</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-start gap-4">
+            <div className="bg-emerald-500/20 p-3 rounded-lg text-emerald-400 text-xl">🔥</div>
+            <div>
+              <h4 className="text-white font-bold text-sm mb-1">Peak Performance</h4>
+              <p className="text-slate-400 text-xs leading-relaxed">
+                {smartInsights.bestEfficiency 
+                  ? `Entry finished ${smartInsights.bestEfficiency.date} achieved the highest efficiency at ₹${smartInsights.bestEfficiency.costPerDay}/day (lasted ${smartInsights.bestEfficiency.days} days).` 
+                  : "Not enough finished data to calculate."}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-start gap-4">
+            <div className="bg-red-500/20 p-3 rounded-lg text-red-400 text-xl">📉</div>
+            <div>
+              <h4 className="text-white font-bold text-sm mb-1">Lowest Performer</h4>
+              <p className="text-slate-400 text-xs leading-relaxed">
+                {smartInsights.worstEfficiency 
+                  ? `Entry finished ${smartInsights.worstEfficiency.date} was the most expensive at ₹${smartInsights.worstEfficiency.costPerDay}/day (lasted only ${smartInsights.worstEfficiency.days} days).` 
+                  : "Not enough finished data to calculate."}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-start gap-4">
+            <div className="bg-amber-500/20 p-3 rounded-lg text-amber-400 text-xl">⏳</div>
+            <div>
+              <h4 className="text-white font-bold text-sm mb-1">Logistics Overview</h4>
+              <p className="text-slate-400 text-xs leading-relaxed">
+                Average receive time is <strong className="text-[#00D4FF]">{metrics.avgLeadTime} days</strong>. 
+                {smartInsights.slowestDelivery 
+                  ? ` Slowest order (${smartInsights.slowestDelivery.date}) took ${smartInsights.slowestDelivery.days} days.` 
+                  : ""}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-start gap-4">
+            <div className="bg-cyan-500/20 p-3 rounded-lg text-cyan-400 text-xl">⚙️</div>
+            <div>
+              <h4 className="text-white font-bold text-sm mb-1">Current Status</h4>
+              <p className="text-slate-400 text-xs leading-relaxed">
+                {smartInsights.active 
+                  ? `1 cylinder currently active. Started on ${smartInsights.active.started} (${smartInsights.activeDays} days ago).` 
+                  : "No cylinders currently marked as active."}
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
     </div>
   );
 }
