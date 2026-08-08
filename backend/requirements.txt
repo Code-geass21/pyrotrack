@@ -5,3 +5,5 @@ alembic
 aiosqlite
 pydantic
 python-multipart
+passlib[bcrypt]
+pyjwt
