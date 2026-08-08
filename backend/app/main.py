@@ -5,7 +5,7 @@ import zipfile
 import io
 import asyncio
 import jwt
-from passlib.context import CryptContext
+import bcrypt
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -28,8 +28,18 @@ os.makedirs(RECEIPTS_DIR, exist_ok=True)
 # Auth Settings
 SECRET_KEY = "pyrotrack-local-secure-key"
 ALGORITHM = "HS256"
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/token")
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    try:
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception:
+        return False
+
+def get_password_hash(password: str) -> str:
+    # Safely truncate to 72 bytes to satisfy strict bcrypt byte limits
+    pwd_bytes = password.encode('utf-8')[:72]
+    return bcrypt.hashpw(pwd_bytes, bcrypt.gensalt()).decode('utf-8')
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -52,13 +62,13 @@ async def lifespan(app: FastAPI):
     async with async_session() as db:
         result = await db.execute(select(User).filter(User.id == 1))
         if not result.scalars().first():
-            default_user = User(id=1, username="family", password_hash=pwd_context.hash("password"))
+            default_user = User(id=1, username="family", password_hash=get_password_hash("password"))
             db.add(default_user)
             await db.commit()
 
     yield
 
-app = FastAPI(title="Pyrotrack API", version="2.0.0", lifespan=lifespan)
+app = FastAPI(title="Pyrotrack API", version="2.0.1", lifespan=lifespan)
 
 ### ─── AUTHENTICATION DEPENDENCIES ──────────────────────────
 async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
@@ -117,7 +127,7 @@ class AuditLogResponse(BaseModel):
 async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).filter(User.username == user.username))
     if result.scalars().first(): raise HTTPException(status_code=400, detail="Username taken")
-    new_user = User(username=user.username, password_hash=pwd_context.hash(user.password))
+    new_user = User(username=user.username, password_hash=get_password_hash(user.password))
     db.add(new_user)
     await db.commit()
     return {"message": "User created successfully"}
@@ -126,7 +136,7 @@ async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).filter(User.username == form_data.username))
     user = result.scalars().first()
-    if not user or not pwd_context.verify(form_data.password, user.password_hash):
+    if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Incorrect username or password")
 
     token = jwt.encode({"sub": str(user.id), "exp": datetime.utcnow() + timedelta(days=30)}, SECRET_KEY, algorithm=ALGORITHM)
@@ -181,7 +191,6 @@ async def delete_entry(entry_id: int, db: AsyncSession = Depends(get_db), curren
 
 @app.get("/api/v1/audit", response_model=List[AuditLogResponse])
 async def get_audit_logs(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # Simple setup: user can see all audits. For strict isolation, audits would need user_id too.
     result = await db.execute(select(AuditLog).order_by(AuditLog.timestamp.desc()))
     return result.scalars().all()
 
@@ -206,7 +215,7 @@ async def upload_receipt(entry_id: int, file: UploadFile = File(...), db: AsyncS
     await db.commit()
     return db_entry
 
-### ─── SYSTEM OPERATIONS (UNPROTECTED FOR EASE OF RECOVERY) ───
+### ─── SYSTEM OPERATIONS ────────────────────────────────────
 @app.get("/api/v1/backup")
 async def download_backup():
     try:
