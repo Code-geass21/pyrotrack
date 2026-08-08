@@ -121,8 +121,9 @@ async def upload_receipt(entry_id: int, file: UploadFile = File(...), db: AsyncS
     safe_filename = f"receipt_{entry_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.{file_ext}"
     file_path = os.path.join(RECEIPTS_DIR, safe_filename)
     
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    contents = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(contents)
         
     old_path = db_entry.receipt_path
     db_entry.receipt_path = f"/api/v1/receipts/{safe_filename}"
@@ -135,9 +136,11 @@ async def upload_receipt(entry_id: int, file: UploadFile = File(...), db: AsyncS
 
 # 🗄️ NEW: SYSTEM BACKUP ENDPOINT (.ZIP)
 @app.get("/api/v1/backup")
-async def download_backup(db: AsyncSession = Depends(get_db)):
-    # 🛑 FLUSH THE WAL: Force SQLite to save memory cache to disk before zipping!
-    await db.execute(text("PRAGMA wal_checkpoint(TRUNCATE);"))
+async def download_backup():
+    # 🛑 THE FIX: Force WAL checkpoint using an independent autocommit connection!
+    # If we use a normal Session, SQLAlchemy opens a transaction which blocks the checkpoint.
+    async with engine.connect() as conn:
+        await conn.execution_options(isolation_level="AUTOCOMMIT").execute(text("PRAGMA wal_checkpoint(TRUNCATE);"))
     
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
@@ -166,15 +169,15 @@ async def restore_backup(background_tasks: BackgroundTasks, file: UploadFile = F
     if not file.filename.endswith('.zip'): raise HTTPException(status_code=400, detail="Must be a .zip file")
     temp_zip_path = os.path.join(DATA_DIR, "temp_restore.zip")
     
-    with open(temp_zip_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    contents = await file.read()
+    with open(temp_zip_path, "wb") as f:
+        f.write(contents)
         
     try:
         # 1. Forcefully disconnect SQLAlchemy
         await engine.dispose()
 
         # 2. 🛑 NUKE LINGERING FILES BEFORE EXTRACTING
-        # If we don't delete the old DB and WAL files first, SQLite will corrupt the new DB!
         for old_file in ["util_data.db", "util_data.db-wal", "util_data.db-shm"]:
             old_path = os.path.join(DATA_DIR, old_file)
             if os.path.exists(old_path):
