@@ -63,3 +63,38 @@ services:
 
 volumes:
   pyrotrack_db:
+
+```
+
+### 2. Deployment
+
+Clone the repository and spin up the container:
+```bash
+git clone https://github.com/Code-geass21/pyrotrack.git
+cd pyrotrack
+docker-compose up -d --build
+
+```
+
+Access the application at `http://localhost:8088`.
+
+---
+
+## 📦 Backup & Recovery Mechanics
+
+Pyrotrack features a robust data sovereignty system:
+
+1. **To Backup:** Click the `💾 Download Backup` button in the UI. This triggers a WAL checkpoint and packages your SQLite database and all uploaded receipts into a timestamped `.zip` file.
+2. **To Restore:** Click `🔄 Restore Backup`. The application will safely drop database connections, extract your `.zip` over the active files, and gracefully exit the container. Docker's `unless-stopped` policy will instantly reboot the app with your restored data.
+
+*(Note: Restoring a backup will overwrite current data. Ensure you log in with the credentials that were active at the time the backup was created.)*
+
+---
+
+## 📄 License
+
+This project is built for personal data sovereignty. Feel free to fork, modify, and host it on your own private infrastructure.
+
+```
+
+```
