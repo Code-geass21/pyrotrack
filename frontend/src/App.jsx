@@ -9,6 +9,7 @@ export default function App() {
   const [entries, setEntries] = useState([]);
   const [error, setError] = useState(null);
   const [isAuditOpen, setIsAuditOpen] = useState(false);
+  const [isRebooting, setIsRebooting] = useState(false);
 
   const fetchEntries = async () => {
     try {
@@ -22,7 +23,7 @@ export default function App() {
 
   useEffect(() => { fetchEntries(); }, []);
 
-  // 🔄 NEW: RESTORE BACKUP LOGIC
+  // 🔄 NEW: SMOOTH REBOOT LOGIC
   const handleRestore = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -32,20 +33,36 @@ export default function App() {
     formData.append("file", file);
     
     try {
+      setIsRebooting(true); // Trigger the loading overlay
       const res = await fetch("/api/v1/restore", { method: "POST", body: formData });
       if (res.ok) {
-        alert("Backup restored successfully! The page will now reload.");
-        window.location.reload(); // Hard refresh to load the new database
+        // Wait 5 seconds for Docker to restart the backend, then hard refresh
+        setTimeout(() => {
+          window.location.reload();
+        }, 5000);
       } else {
+        setIsRebooting(false);
         alert("Failed to restore backup.");
       }
-    } catch (err) { alert("Error: " + err.message); }
+    } catch (err) { 
+      setIsRebooting(false);
+      alert("Error: " + err.message); 
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#080C10] p-8 text-white font-sans selection:bg-[#00D4FF] selection:text-black">
+    <div className="min-h-screen bg-[#080C10] p-8 text-white font-sans selection:bg-[#00D4FF] selection:text-black relative">
+      
+      {/* 🚀 REBOOTING OVERLAY */}
+      {isRebooting && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
+          <div className="w-16 h-16 border-4 border-[#00D4FF] border-t-transparent rounded-full animate-spin mb-4"></div>
+          <h2 className="text-2xl font-black text-[#00D4FF] tracking-widest">RESTORING VAULT</h2>
+          <p className="text-slate-400 mt-2">Rebooting backend server to flush cache. Please wait...</p>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto">
-        
         <header className="mb-10 flex justify-between items-end">
           <div>
             <h1 className="text-3xl font-black text-[#00D4FF] tracking-widest drop-shadow-[0_0_10px_rgba(0,212,255,0.3)]">
@@ -55,7 +72,6 @@ export default function App() {
           </div>
           
           <div className="flex gap-3">
-            {/* 🔄 NEW: RESTORE BACKUP UPLOAD BUTTON */}
             <label className="text-xs font-bold bg-amber-500/10 text-amber-400 px-4 py-2 rounded border border-amber-500/20 hover:bg-amber-500/20 transition-colors flex items-center gap-2 cursor-pointer">
               🔄 Restore Backup
               <input type="file" accept=".zip" className="hidden" onChange={handleRestore} />
@@ -71,7 +87,7 @@ export default function App() {
           </div>
         </header>
 
-        {error && <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-lg mb-8"><strong>Backend Connection Failed:</strong> {error}</div>}
+        {error && !isRebooting && <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-lg mb-8"><strong>Backend Connection Failed:</strong> {error}</div>}
 
         <DeliveryTracker entries={entries} />
 
