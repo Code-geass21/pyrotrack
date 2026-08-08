@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 
 export default function DataGrid({ entries, refreshData, token }) {
@@ -78,10 +78,10 @@ export default function DataGrid({ entries, refreshData, token }) {
               const isEditing = editRowId === entry.id;
               const isInfoOpen = infoRowId === entry.id;
               const currentActionDate = actionDates[entry.id] || today;
-
+              
               let status = "In Transit"; let statusColor = "text-slate-400";
-              if (entry.finished) { status = "Finished"; statusColor = "text-slate-500"; }
-              else if (entry.started) { status = "Active Cylinder"; statusColor = "text-[#00D4FF] font-bold"; }
+              if (entry.finished) { status = "Finished"; statusColor = "text-slate-500"; }  
+              else if (entry.started) { status = "Active Cylinder"; statusColor = "text-[#00D4FF] font-bold"; }  
               else if (entry.received) { status = "In Reserve"; statusColor = "text-emerald-400"; }
 
               return (
