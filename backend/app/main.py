@@ -133,12 +133,17 @@ async def upload_receipt(entry_id: int, file: UploadFile = File(...), db: AsyncS
     await db.commit()
     return db_entry
 
+# 🗄️ NEW: SYSTEM BACKUP ENDPOINT (.ZIP)
 @app.get("/api/v1/backup")
-async def download_backup():
+async def download_backup(db: AsyncSession = Depends(get_db)):
+    # 🛑 FLUSH THE WAL: Force SQLite to save memory cache to disk before zipping!
+    await db.execute(text("PRAGMA wal_checkpoint(TRUNCATE);"))
+    
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
         db_path = os.path.join(DATA_DIR, "util_data.db")
-        if os.path.exists(db_path): zip_file.write(db_path, "util_data.db")
+        if os.path.exists(db_path): 
+            zip_file.write(db_path, "util_data.db")
         for root, _, files in os.walk(RECEIPTS_DIR):
             for file in files:
                 file_path = os.path.join(root, file)
@@ -155,6 +160,7 @@ async def reboot_container():
     await asyncio.sleep(1.5)
     os._exit(0)
 
+# 🔄 NEW: SMART-PARSING RESTORE ENDPOINT
 @app.post("/api/v1/restore")
 async def restore_backup(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     if not file.filename.endswith('.zip'): raise HTTPException(status_code=400, detail="Must be a .zip file")
@@ -164,15 +170,25 @@ async def restore_backup(background_tasks: BackgroundTasks, file: UploadFile = F
         shutil.copyfileobj(file.file, buffer)
         
     try:
-        # 🛑 THE FIX: Forcefully disconnect SQLAlchemy to release the SQLite file locks!
+        # 1. Forcefully disconnect SQLAlchemy
         await engine.dispose()
 
+        # 2. 🛑 NUKE LINGERING FILES BEFORE EXTRACTING
+        # If we don't delete the old DB and WAL files first, SQLite will corrupt the new DB!
+        for old_file in ["util_data.db", "util_data.db-wal", "util_data.db-shm"]:
+            old_path = os.path.join(DATA_DIR, old_file)
+            if os.path.exists(old_path):
+                try:
+                    os.remove(old_path)
+                except Exception:
+                    pass
+
+        # 3. Extract fresh data
         with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
             for member in zip_ref.namelist():
                 filename = os.path.basename(member)
                 if not filename: continue
 
-                # Strict check so we don't accidentally extract cached -wal or -shm files
                 if member.endswith("util_data.db"):
                     target_path = os.path.join(DATA_DIR, "util_data.db")
                     with zip_ref.open(member) as source, open(target_path, "wb") as target:
@@ -185,11 +201,6 @@ async def restore_backup(background_tasks: BackgroundTasks, file: UploadFile = F
                         
         os.remove(temp_zip_path)
         
-        # Nuke lingering caching files entirely
-        for cache_file in ["util_data.db-wal", "util_data.db-shm"]:
-            cache_path = os.path.join(DATA_DIR, cache_file)
-            if os.path.exists(cache_path): os.remove(cache_path)
-            
         background_tasks.add_task(reboot_container)
         return {"status": "success"}
         
